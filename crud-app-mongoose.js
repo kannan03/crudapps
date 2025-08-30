@@ -1,89 +1,159 @@
+// npm init -y
+// npm install express mongoose bcryptjs jsonwebtoken cors dotenv
 
-/*
-npm init
-npm install express mongoose cors
-*/
-const express = require('express');
-const mongoose = require('mongoose');
-const cors = require('cors');
+const express = require("express");
+const mongoose = require("mongoose");
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
+const cors = require("cors");
+require("dotenv").config();
 
-// Initialize Express app
+// app Initialize 
 const app = express();
+const PORT = process.env.PORT || 5000;
+const JWT_SECRET = process.env.JWT_SECRET || "supersecretkey";
+
+console.log("JWT_SECRET===============",JWT_SECRET);
 
 // Middleware
 app.use(express.json());
 app.use(cors());
 
-const MONGO_URI="mongodb://localhost:27017/mern-crud";
-
-const dbURI = 'mongodb+srv://sivakannan:9A15TybAI0Xrzf7J@sivakannancloud.gghy0.mongodb.net/user?retryWrites=true&w=majority'
-
-mongoose.connect(dbURI, {
+// MongoDB connection
+mongoose.connect(process.env.MONGO_URI || "mongodb://127.0.0.1:27017/user_crud_db", {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 })
-  .then(() => {
-    console.log('Connected to MongoDB');
-  })
-  .catch(err => {
-    console.error('Error connecting to MongoDB:', err);
-});
+.then(() => console.log("✅ MongoDB connected"))
+.catch(err => console.error("❌ MongoDB connection error:", err));
 
-// User Model Schema
+// User Schema + Model
 const userSchema = new mongoose.Schema({
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true },
-  age: { type: Number, required: true }
+  age: { type: Number },
+  password: { type: String, required: true },
+  createdAt: { type: Date, default: Date.now }
+});
+const User = mongoose.model("User", userSchema);
+
+// User Router Create
+// REGISTER (Sign Up)
+app.post("/api/signup", async (req, res) => {
+  try {
+    const { name, email, age, password } = req.body;
+
+    // Check existing user
+    const existingUser = await User.findOne({ email });
+    if (existingUser) return res.status(400).json({ error: "Email already exists" });
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const user = new User({ name, email, age, password: hashedPassword });
+    await user.save();
+
+    res.status(201).json({ message: "User registered successfully", userId: user._id });
+  } catch (err) {
+    console.log("something went wrong:", err);
+    res.status(500).json({ error: err.message });
+}
 });
 
-const User = mongoose.model('User', userSchema);
+// LOGIN (Sign In)
+app.post("/api/signin", async (req, res) => {
+  try {
+    const { email, password } = req.body;
 
-// User Service Methods
-createUser = async (req, res) => {
-    try {
-      const user = new User(req.body);
-      await user.save();
-      res.status(201).json(user);
-    } catch (err) {
-      res.status(400).json({ error: err.message });
+    // Find user
+    const user = await User.findOne({ email });
+    if (!user) return res.status(400).json({ error: "Invalid credentials" });
+
+    // Check password
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) return res.status(400).json({ error: "Invalid credentials" });
+
+    // Create token
+    const token = jwt.sign(
+      { id: user._id, email: user.email },
+      JWT_SECRET,
+      { expiresIn: "5h" }
+    );
+
+    res.json({ message: "Login successful", token });
+  } catch (err) {
+    console.log("something went wrong:", err);
+    res.status(500).json({ error: err.message });
+}
+});
+
+// get All users
+app.get("/api/users", async (req, res) => {
+    try{
+        const users = await User.find().select("-password");
+        res.json(users);    
+    }catch(err){
+        console.log("something went wrong:", err);
+        res.status(500).json({ error: err.message });
     }
-  };
-  
-  getUsers = async (req, res) => {
+});
+
+// READ one
+app.get("/users/:id", async (req, res) => {
     try {
-      const users = await User.find();
-      res.status(200).json(users);
+      const user = await User.findById(req.params.id);
+      if (!user) return res.status(404).json({ message: "User not found" });
+      res.json(user);
     } catch (err) {
-      res.status(400).json({ error: err.message });
+      res.status(500).json({ error: err.message });
     }
-  };
-  
-  updateUser = async (req, res) => {
+});  
+
+// UPDATE
+app.put("/api/users/:id", async (req, res) => {
     try {
-      const updatedUser = await User.findByIdAndUpdate(req.params.id, req.body, { new: true });
-      res.status(200).json(updatedUser);
+      const user = await User.findByIdAndUpdate(req.params.id, req.body, {
+        new: true,
+        runValidators: true,
+      });
+      if (!user) return res.status(404).json({ message: "User not found" });
+      res.json(user);
     } catch (err) {
-      res.status(400).json({ error: err.message });
+        console.log("something went wrong:", err);
+        res.status(500).json({ error: err.message });
     }
-  };
-  
-  deleteUser = async (req, res) => {
+});
+
+// DELETE
+app.delete("/api/users/:id", async (req, res) => {
     try {
-      await User.findByIdAndDelete(req.params.id);
-      res.status(200).json({ message: 'User deleted' });
+      const user = await User.findByIdAndDelete(req.params.id);
+      if (!user) return res.status(404).json({ message: "User not found" });
+      res.json({ message: "User deleted successfully" });
     } catch (err) {
-      res.status(400).json({ error: err.message });
+        console.log("something went wrong:", err);
+        res.status(500).json({ error: err.message });
     }
-  };
+});
   
-// User API Routes defines
-app.post('/api/users', createUser);
-app.get('/api/users', getUsers);
-app.put('/api/users/:id', updateUser);
-app.delete('/api/users/:id', deleteUser);
+  
+// PROTECTED route example
+app.get("/api/profile", async (req, res) => {
+  try {
+    const token = req.headers.authorization?.split(" ")[1];
+    if (!token) return res.status(401).json({ error: "No token provided" });
+
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const user = await User.findById(decoded.id).select("-password");
+    res.json(user);
+  } catch (err) {
+    console.log("something went wrong:", err);
+    res.status(401).json({ error: "Invalid token" });
+  }
+});
+
 
 // Start server
-const PORT = 5000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
-
-
+app.listen(PORT, () => {
+  console.log(`🚀 Server running on http://localhost:${PORT}`);
+});
