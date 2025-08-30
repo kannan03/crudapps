@@ -19,6 +19,20 @@ console.log("JWT_SECRET===============",JWT_SECRET);
 app.use(express.json());
 app.use(cors());
 
+const authMiddleware = (req, res, next) => {
+    try {
+       const authHeader = req.headers["authorization"];
+       if (!authHeader) return res.status(401).json({ error: "No token provided" });
+       const token = authHeader.split(" ")[1];
+       if (!token) return res.status(401).json({ error: "Token missing" });    
+       const decoded = jwt.verify(token, process.env.JWT_SECRET || "supersecretkey");
+       req.user = decoded; // attach user info (id, email) to request
+       next();
+    } catch (err) {
+      return res.status(401).json({ error: "Invalid or expired token" });
+    }
+};
+
 // MongoDB connection
 mongoose.connect(process.env.MONGO_URI || "mongodb://127.0.0.1:27017/user_crud_db", {
   useNewUrlParser: true,
@@ -138,23 +152,18 @@ app.delete("/api/users/:id", async (req, res) => {
   
   
 // PROTECTED route example
-app.get("/api/profile", async (req, res) => {
-  try {
-    const token = req.headers.authorization?.split(" ")[1];
-    if (!token) return res.status(401).json({ error: "No token provided" });
-
-    const decoded = jwt.verify(token, JWT_SECRET);
-    const user = await User.findById(decoded.id).select("-password");
-    res.json(user);
-  } catch (err) {
-    console.log("something went wrong:", err);
-    res.status(401).json({ error: "Invalid token" });
-  }
+app.get("/api/profile", authMiddleware, async (req, res) => {
+    try {
+      const user = await User.findById(req.user.id).select("-password");
+      res.json(user);
+    } catch (err) {
+        console.log("something went wrong:", err);
+        res.status(401).json({ error: "Invalid token" });
+    }
 });
-
+  
 
 // Start server
 app.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
 });
-
