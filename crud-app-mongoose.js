@@ -157,3 +157,4 @@ app.get("/api/profile", async (req, res) => {
 app.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
 });
+
