@@ -1,90 +1,132 @@
-// App.js
+//frontend/src/index.js
+import React from "react";
+import ReactDOM from "react-dom/client";
+import App from "./App";
 
-import React, { useState } from 'react';
+const root = ReactDOM.createRoot(document.getElementById("root"));
+root.render(<App />);
+
+
+//frontend/src/App.js
+import { BrowserRouter, Routes, Route, Link } from "react-router-dom";
+import SignUp from "./pages/SignUp";
+import SignIn from "./pages/SignIn";
+import UserList from "./pages/UserList";
 
 function App() {
-  // Initialize users state
+  return (
+    <BrowserRouter>
+      <nav>
+        <Link to="/signup">Sign Up</Link> |{" "}
+        <Link to="/signin">Sign In</Link> |{" "}
+        <Link to="/users">User List</Link>
+      </nav>
+      <Routes>
+        <Route path="/signup" element={<SignUp />} />
+        <Route path="/signin" element={<SignIn />} />
+        <Route path="/users" element={<UserList />} />
+      </Routes>
+    </BrowserRouter>
+  );
+}
+
+export default App;
+
+//frontend/src/pages/UserList.js
+import React, { useEffect, useState } from "react";
+import axios from "axios";
+import UserList from "./frontend/src/pages/UserList";
+
+function UserList() {
+  const token = localStorage.getItem("token");
+  if( !token) return <Navigate to="/signin" />;
+
   const [users, setUsers] = useState([]);
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [editingIndex, setEditingIndex] = useState(null);
+  const [form, setForm] = useState({ id: null, name: "", email: "", password: "" });
+  const [isEditing, setIsEditing] = useState(false);
 
-  // Handle adding a new user
-  const addUser = () => {
-    if (!name || !email) {
-      alert('Both name and email are required!');
-      return;
-    }
+  const API = "http://localhost:5000/api/users";
 
-    const newUser = {
-      name,
-      email,
-    };
-
-    setUsers([...users, newUser]);
-    setName('');
-    setEmail('');
+  // Fetch users
+  const fetchUsers = async () => {
+    const res = await axios.get(API);
+    setUsers(res.data);
   };
 
-  // Handle editing an existing user
-  const editUser = (index) => {
-    const user = users[index];
-    setName(user.name);
-    setEmail(user.email);
-    setEditingIndex(index);
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
+
+  const handleAdd = async (e) => {
+    e.preventDefault();
+    await axios.post(API, { name: form.name, email: form.email });
+    fetchUsers();
+    setForm({ id: null, name: "", email: "",password : "" });
   };
 
-  // Handle updating the user
-  const updateUser = () => {
-    if (!name || !email) {
-      alert('Both name and email are required!');
-      return;
-    }
-
-    const updatedUsers = [...users];
-    updatedUsers[editingIndex] = { name, email };
-    setUsers(updatedUsers);
-    setName('');
-    setEmail('');
-    setEditingIndex(null);
+  const handleEdit = (user) => {
+    setIsEditing(true);
+    setForm(user);
   };
 
-  // Handle deleting a user
-  const deleteUser = (index) => {
-    const updatedUsers = users.filter((user, i) => i !== index);
-    setUsers(updatedUsers);
+  const handleUpdate = async (e) => {
+    e.preventDefault();
+    await axios.put(`${API}/${form.id}`, { name: form.name, email: form.email });
+    fetchUsers();
+    setIsEditing(false);
+    setForm({ id: null, name: "", email: "", password : "" });
+  };
+
+  const handleDelete = async (id) => {
+    await axios.delete(`${API}/${id}`);
+    fetchUsers();
   };
 
   return (
-    <div className="App">
-      <h1>User Management</h1>
-      <div>
+    <div style={{ maxWidth: 500, margin: "20px auto", padding: 20 }}>
+      <h1>User CRUD (React + Axios)</h1>
+
+      <form onSubmit={isEditing ? handleUpdate : handleAdd}>
         <input
           type="text"
+          name="name"
           placeholder="Name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
+          value={form.name}
+          onChange={handleChange}
+          style={{ display: "block", margin: "8px 0", padding: "8px", width: "100%" }}
         />
         <input
           type="email"
+          name="email"
           placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          value={form.email}
+          onChange={handleChange}
+          style={{ display: "block", margin: "8px 0", padding: "8px", width: "100%" }}
         />
-        {editingIndex !== null ? (
-          <button onClick={updateUser}>Update User</button>
-        ) : (
-          <button onClick={addUser}>Add User</button>
-        )}
-      </div>
+        <input
+          type="password"
+          name="password"
+          placeholder="Password"
+          value={form.password}
+          onChange={handleChange}
+          style={{ display: "block", margin: "8px 0", padding: "8px", width: "100%" }}
+        />
 
-      <h2>Users List</h2>
-      <ul>
-        {users.map((user, index) => (
-          <li key={index}>
-            <strong>{user.name}</strong> - {user.email}
-            <button onClick={() => editUser(index)}>Edit</button>
-            <button onClick={() => deleteUser(index)}>Delete</button>
+        <button type="submit" style={{ padding: "8px 12px", marginTop: "8px" }}>
+          {isEditing ? "Update User" : "Add User"}
+        </button>
+      </form>
+
+      <ul style={{ marginTop: 20 }}>
+        {users.map((u) => (
+          <li key={u.id} style={{ margin: "10px 0", padding: "10px", border: "1px solid #ccc" }}>
+            <b>{u.name}</b> - {u.email}
+            <div>
+              <button onClick={() => handleEdit(u)} style={{ marginRight: 10 }}>Edit</button>
+              <button onClick={() => handleDelete(u.id)}>Delete</button>
+            </div>
           </li>
         ))}
       </ul>
@@ -92,4 +134,5 @@ function App() {
   );
 }
 
-export default App;
+export default UserList;
+
