@@ -1,7 +1,6 @@
 // npm init -y
 // npm install express mongoose bcryptjs jsonwebtoken cors dotenv
 
-
 const express = require("express");
 const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
@@ -35,7 +34,7 @@ const authMiddleware = (req, res, next) => {
 };
 
 // MongoDB connection
-mongoose.connect(process.env.MONGO_URI || "mongodb://127.0.0.1:27017/user_crud_db", {
+mongoose.connect("mongodb+srv://sivakannan:kannan3010@cluster0.vxmojpg.mongodb.net/myAppDB" || "mongodb://127.0.0.1:27017/user_crud_db", {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 })
