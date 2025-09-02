@@ -15,9 +15,7 @@ app.use(cors());
 
 const authMiddleware = (req, res, next) => {
     try {
-       const authHeader = req.headers["authorization"];
-       if (!authHeader) return res.status(401).json({ error: "No token provided" });
-       const token = authHeader.split(" ")[1];
+       const token = req.headers["authorization"] ? req.headers["authorization"].split(" ")[1] : "";
        if (!token) return res.status(401).json({ error: "Token missing" });    
        const decoded = jwt.verify(token, process.env.JWT_SECRET || "supersecretkey");
        req.user = decoded; // attach user info (id, email) to request
@@ -27,53 +25,42 @@ const authMiddleware = (req, res, next) => {
     }
 };
 
+async function checkConnection() {
+    try {
+      const connection = await mysql.createConnection({
+        host: "localhost",
+        user: "root",
+        password: "admin123",
+        database: "kannan"
+      });
+      console.log("✅ MySQL connected!");
+      const [rows] = await connection.query("SELECT NOW() AS now");
+      console.log("Server time is:", rows[0].now);
+      await connection.end();
+
+    } catch (err) {
+      console.error("❌ MySQL connection error:", err.message);
+    }
+  }
+  
+
 // MySQL connection
 let db;
 ( async () => {
-    // try{
-    //     const connection = await mysql.createConnection({
-    //         host: "localhost",
-    //         user: "root",
-    //         password: "admin2@123",
-    //         database: "kannan"
-    //       });
-      
-    //     console.log("✅ MySQL connected!");    
-    // }
-
-  db = mysql.createPool({
-    host: process.env.DB_HOST || "localhost",
-    user: process.env.DB_USER || "root",
-    password: process.env.DB_PASS || "admin2@123",
-    database: process.env.DB_NAME || "kannban",
-    waitForConnections: true,
-    connectionLimit: 10,
-    queueLimit: 0,
-  });
-//   console.log("✅ MySQL connected");
+   try{
+    await checkConnection();
+    db = mysql.createPool({
+      host: process.env.DB_HOST || "localhost",
+      user: process.env.DB_USER || "root",
+      password: process.env.DB_PASS || "admin123",
+      database: process.env.DB_NAME || "kannan",
+      connectionLimit: 10
+    });
+  
+   } catch(err){
+       console.log("Connection Error:", err)
+   }
 })();
-
-// async function checkConnection() {
-//     try {
-//       const connection = await mysql.createConnection({
-//         host: "localhost",
-//         user: "root",
-//         password: "",
-//         database: "user_crud_db"
-//       });
-  
-//       console.log("✅ MySQL connected!");
-//       const [rows] = await connection.query("SELECT NOW() AS now");
-//       console.log("Server time is:", rows[0].now);
-  
-//       await connection.end();
-//     } catch (err) {
-//       console.error("❌ MySQL connection error:", err.message);
-//     }
-//   }
-  
-//   checkConnection();
-  
 
 /*CREATE TABLE users (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -84,10 +71,9 @@ let db;
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   );
 */
-  
 
 // REGISTER (Sign Up)
-app.post("/api/users", async (req, res) => {
+app.post("/api/signup", async (req, res) => {
   try {
     const { name, email, age, password } = req.body;
 
