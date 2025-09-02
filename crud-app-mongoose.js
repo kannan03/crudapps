@@ -34,7 +34,7 @@ const authMiddleware = (req, res, next) => {
 };
 
 // MongoDB connection
-mongoose.connect("mongodb+srv://sivakannan:kannan3010@cluster0.vxmojpg.mongodb.net/myAppDB" || "mongodb://127.0.0.1:27017/user_crud_db", {
+mongoose.connect("mongodb+srv://sivakannan:kannan3010@cluster0.vxmojpg.mongodb.net/myAppDB" || "mongodb://127.0.0.1:27017/myAppDB", {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 })
