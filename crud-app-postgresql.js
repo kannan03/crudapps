@@ -53,7 +53,7 @@ db.connect()
 */
 
 // REGISTER (Sign Up)
-app.post("/api/users", async (req, res) => {
+app.post("/api/signup", async (req, res) => {
   try {
     const { name, email, age, password } = req.body;
 
