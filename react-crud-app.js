@@ -136,3 +136,82 @@ function UserList() {
 
 export default UserList;
 
+
+//frontend/src/pages/SignUp.js
+import { useState } from "react";
+import API from "../api";
+import { useNavigate } from "react-router-dom";
+
+export default function SignUp() {
+  const [form, setForm] = useState({ name: "", email: "", password: "" });
+  const navigate = useNavigate();
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    await API.post("/users", form);
+    alert("User registered!");
+    navigate("/signin");
+  };
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <h2>Sign Up</h2>
+      <input
+        placeholder="Name"
+        value={form.name}
+        onChange={(e) => setForm({ ...form, name: e.target.value })}
+      />
+      <input
+        placeholder="Email"
+        type="email"
+        value={form.email}
+        onChange={(e) => setForm({ ...form, email: e.target.value })}
+      />
+      <input
+        placeholder="Password"
+        type="password"
+        value={form.password}
+        onChange={(e) => setForm({ ...form, password: e.target.value })}
+      />
+      <button type="submit">Register</button>
+    </form>
+  );
+}
+
+//frontend/src/pages/SignIn.js
+import { useState } from "react";
+import API from "../api";
+import { useNavigate } from "react-router-dom";
+
+export default function SignIn() {
+  const [form, setForm] = useState({ email: "", password: "" });
+  const navigate = useNavigate();
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    const res = await API.post("/users/signin", form);
+    localStorage.setItem("token", res.data.token);
+    navigate("/users");
+  };
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <h2>Sign In</h2>
+      <input
+        placeholder="Email"
+        type="email"
+        value={form.email}
+        onChange={(e) => setForm({ ...form, email: e.target.value })}
+      />
+      <input
+        placeholder="Password"
+        type="password"
+        value={form.password}
+        onChange={(e) => setForm({ ...form, password: e.target.value })}
+      />
+      <button type="submit">Login</button>
+    </form>
+  );
+}
+
+
